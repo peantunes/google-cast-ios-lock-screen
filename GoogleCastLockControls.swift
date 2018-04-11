@@ -149,7 +149,9 @@ class GoogleCastLockControls:NSObject {
         print("moving backward \(interval)")
         let session = GCKCastContext.sharedInstance().sessionManager.currentCastSession
         if let position = session?.remoteMediaClient?.approximateStreamPosition() {
-            session?.remoteMediaClient?.seek(toTimeInterval: max(position - 15,0))
+            let options = GCKMediaSeekOptions()
+            options.interval = max(position - 15,0)
+            session?.remoteMediaClient?.seek(with: options)
         }
         return .success
     }
@@ -164,7 +166,9 @@ class GoogleCastLockControls:NSObject {
         print("moving forward \(interval)")
         let session = GCKCastContext.sharedInstance().sessionManager.currentCastSession
         if let position = session?.remoteMediaClient?.approximateStreamPosition() {
-            session?.remoteMediaClient?.seek(toTimeInterval: position + 15)
+            let options = GCKMediaSeekOptions()
+            options.interval = position + 15
+            session?.remoteMediaClient?.seek(with: options)
         }
         
         return .success
@@ -305,13 +309,13 @@ extension GoogleCastLockControls:GCKSessionManagerListener {
 
 ///Tracking metadata update from Google cast and refreshing the content
 extension GoogleCastLockControls:GCKRemoteMediaClientListener {
-    func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaMetadata: GCKMediaMetadata) {
+    func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaMetadata: GCKMediaMetadata?) {
         self.currentMetadata = mediaMetadata
         
         self.refreshContentInformation()
     }
     
-    func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus) {
+    func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
         self.currentMediaStatus = mediaStatus
         self.refreshContentInformation()
     }
@@ -327,10 +331,10 @@ extension GoogleCastLockControls:GCKCastDeviceStatusListener {
 ///Extension to provide the hack to avoid GoogleCast to close connection when entering in background
 extension GCKSessionManager {
     static func ignoreAppBackgroundModeChange() {
-        let oldMethod = class_getInstanceMethod(GCKSessionManager.self, #selector(GCKSessionManager.suspendSession(with:)))
-        let newMethod = class_getInstanceMethod(GCKSessionManager.self, #selector(GCKSessionManager.suspendSessionIgnoringAppBackgrounded(with:)))
-        method_exchangeImplementations(oldMethod, newMethod)
-        
+        if let oldMethod = class_getInstanceMethod(GCKSessionManager.self, #selector(GCKSessionManager.suspendSession(with:))),
+            let newMethod = class_getInstanceMethod(GCKSessionManager.self, #selector(GCKSessionManager.suspendSessionIgnoringAppBackgrounded(with:))) {
+            method_exchangeImplementations(oldMethod, newMethod)
+        }
     }
     
     func suspendSessionIgnoringAppBackgrounded(with reason: GCKConnectionSuspendReason) -> Bool {
@@ -388,4 +392,3 @@ extension UIImage {
     }
     
 }
-
